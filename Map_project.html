@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>US State Choropleth Map</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/topojson.v3.min.js"></script>
+  
+    <style>
+        /* Basic styling */
+        .states {
+            fill: #4682B4;
+            stroke: #fff;
+            opacity: ".5";
+            
+            
+           /* stroke-width: 1.0px;*/
+        }        
+    
+    </style>
+
+</head>
+<body>
+    <svg width="960" height="600"></svg>
+   
+    <script type="text/javascript">
+         
+             // Width and height of the map
+            var width = 960,
+                height = 600;
+
+            // Define a projection
+            var projection = d3.geoAlbersUsa()
+                .translate([width / 2, height / 2])
+                .scale([1000]);
+
+            // Define path generator
+            var path = d3.geoPath()
+                .projection(projection);
+        
+           var colorScale = d3.scaleOrdinal(d3.schemeCategory10) // Using a predefined color scheme with 10 colors
+                .domain(d3.range(1, 51)); // Assuming top 50 cities
+        
+    
+            // Select the SVG element
+            var svg = d3.select("svg");
+
+            d3.csv("rankdata_with_coordinates.csv").then(function(data){
+                var cities = data 
+                 
+            // Load the data
+            d3.json("us-states.json").then(function(us) {
+            
+               
+            const tooltip = d3.select("body").append("div")
+               .attr("id", "tooltip")
+               .style("display", "none")
+               .style("position", "absolute")
+               .style("background-color", "white")
+               .style("border", "1px solid black")
+               .style("padding", "5px")
+               .style("font-size", "12px");
+
+
+                // Bind the data and create one path per GeoJSON feature
+                svg.selectAll("path")
+                    .data(us.features)
+                     .enter()
+                    .append("path")
+                    .attr("d", path)
+                   .attr("class", "states")
+                
+                    //.on('click',function(event,d){
+                   // d3.select(this).attr("fill","#b47046")
+                    
+                    
+               // })
+                    .on("mouseover", function(event, d) {        
+                            const [x, y] = d3.pointer(event);        
+                            tooltip.style("display", "block")
+                                    .html(d.properties.NAME) 
+                                    .style("left", (x + 10) + "px")
+                                    .style("top", (y - 20) + "px")
+                    
+                            d3.selectAll(".states")
+                              .transition()
+                              .duration(200)
+                              .style("opacity", .5)
+                    
+                            d3.select(this)
+                              .transition()
+                              .duration(200)
+                              .style("opacity", 1)
+                              .style("stroke", "white")
+                    
+                    
+                            stateclick(event,d)
+                                })
+                        .on("mouseout", function() {
+                            
+                                tooltip.style("display", "none")
+                                 d3.selectAll(".Country")
+                                      .transition()
+                                      .duration(200)
+                                      .style("opacity", .8)
+                                    d3.select(this)
+                                      .transition()
+                                      .duration(200)
+                                      .style("stroke", "transparent")
+                            });
+                svg.selectAll("circle")
+                          .data(cities)
+                          .enter().append("circle")
+                          .attr("cx", function(d) { value = projection([d.Longitude, d.Latitude]) ;return value[0]; })
+                          .attr("cy", function(d) { value = projection([d.Longitude, d.Latitude]) ;return  value[1];})           .attr("r", 5)
+                          .attr("fill", "red")
+                         //   .attr("fill", function(d, i) { console.log(i);return colorScale(i + 1); })
+                          .attr("opacity", 0.8);
+                
+                const statecodeabbr = {
+                    "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT", "10": "DE",
+                    "11": "DC", "12": "FL", "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN", "19": "IA",
+                    "20": "KS", "21": "KY", "22": "LA", "23": "ME", "24": "MD", "25": "MA", "26": "MI", "27": "MN",
+                    "28": "MS", "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH", "34": "NJ", "35": "NM",
+                    "36": "NY", "37": "NC", "38": "ND", "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+                    "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT", "50": "VT", "51": "VA", "53": "WA",
+                    "54": "WV", "55": "WI", "56": "WY"
+                };
+                
+                
+                d3.select("body")
+                    .append("div")
+                    .attr("id", "cityInfo")
+                 //   .append("h2")
+                 //   .text("Top Cities - Attractiveness Score: ");
+
+                
+                d3.select("#cityInfo")
+                    .append("ul")
+                    .attr("id", "topCitiesList");
+
+                
+                function stateabbr(stateCode) {
+                    console.log(stateCode)
+                    return statecodeabbr[stateCode] || "Unknown";
+                }
+                
+                function stateclick(event,d){
+                    
+                    state = stateabbr(d.properties.STATE);
+                    //console.log("state",state)
+                    cities_filter = cities.filter(city=>city.State===state)
+                    cities_filter.sort((a, b) => b.Forecast_2025 - a.Forecast_2025);
+                    top_cities = cities_filter.slice(0,5)
+                   // console.log(top_cities)
+                     const topCitiesList = d3.select("#topCitiesList");
+                    if (top_cities.length > 0){          
+                    //const topCitiesList = d3.select("#topCitiesList");
+                    topCitiesList.selectAll("li").remove(); 
+                         topCitiesList.selectAll("text").remove(); 
+                    topCitiesList.selectAll("h2").remove(); 
+                    topCitiesList.append("h2")
+                                        .text("City - Rank: ")
+                    top_cities.forEach(city => {
+                        
+                        topCitiesList.append("li")
+                            .text(`${city.City} - ${city.AttractivenessRank}`);
+    });} else {
+                  
+                    topCitiesList.selectAll("text").remove(); 
+                    topCitiesList.selectAll("li").remove(); 
+                    topCitiesList.selectAll("h2").remove(); 
+                    topCitiesList.append("text").text("No cities fall within Top 50")    
+                    }
+                
+                }
+                
+                
+                
+                
+             svg.append("text")
+            .attr("x",width/2)   
+            .attr("y",40) 
+            .attr("id","title")
+            .attr("text-anchor","middle")
+            .text("Top 50 US Cities Based On Attractiveness Score")
+            .attr("font-family", "Calibri") 
+            .attr("font-size", "50px")   
+            .attr("fill", "black")         
+           
+            
+        
+        })})
+        
+    </script>
+</body>
+</html>
